@@ -49,6 +49,7 @@ struct NewMatchView: View {
                 }
             }
         }
+        .cappedWidth()
         .navigationTitle("New match")
         .scrollDismissesKeyboard(.interactively)
         .toolbar {

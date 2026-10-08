@@ -20,6 +20,14 @@ struct GameView: View {
     @State private var showLiveBroadcastSheet = false
     @State private var liveDraftCode = ""
     @State private var liveBroadcastError: String?
+    /// Drives the broadcast sheet UI; must be `@State` so SwiftUI refreshes when broadcasting starts (mutating `liveJoinCodeRef.value` alone does not).
+    @State private var activeLiveJoinCode: String?
+    @State private var isSavingLiveBroadcast = false
+    @State private var liveSpectatorsCount = 0
+    @State private var liveSpectatorsLoadFailed = false
+    /// The actual CloudKit error text, shown alongside the generic setup hint so the real
+    /// cause (missing record type vs. missing index vs. network) is visible instead of guessed.
+    @State private var liveSpectatorsErrorDetail: String?
     @State private var liveJoinCodeRef = LiveJoinCodeRef()
 
     private let blueSide = Color(red: 0.06, green: 0.28, blue: 0.62)
@@ -81,9 +89,9 @@ struct GameView: View {
                 }
                 Button("Broadcast for spectators…", systemImage: "dot.radiowaves.left.and.right") {
                     liveBroadcastError = nil
-                    if liveJoinCodeRef.value == nil, LiveMatchCloudKit.normalizeJoinCode(liveDraftCode) == nil {
+                    if activeLiveJoinCode == nil, LiveMatchCloudKit.normalizeJoinCode(liveDraftCode) == nil {
                         liveDraftCode = LiveMatchCloudKit.generateJoinCode()
-                    } else if let active = liveJoinCodeRef.value {
+                    } else if let active = activeLiveJoinCode {
                         liveDraftCode = active
                     }
                     showLiveBroadcastSheet = true
@@ -297,13 +305,35 @@ struct GameView: View {
         NavigationStack {
             Form {
                 Section {
-                    if liveJoinCodeRef.value != nil {
-                        Text(liveDraftCode)
+                    if let broadcastingCode = activeLiveJoinCode {
+                        Label("Live — you are broadcasting", systemImage: "dot.radiowaves.left.and.right")
+                            .foregroundStyle(.green)
+                        Text(broadcastingCode)
                             .font(.title2.monospaced())
                             .textSelection(.enabled)
-                        Text("Broadcasting. Spectators enter this code on the Watch tab.")
+                        Text("Spectators enter this code on the Watch tab. Tap Done to close; open this screen again anytime to refresh the count below.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
+
+                        if liveSpectatorsLoadFailed {
+                            Text(
+                                "Couldn’t load how many are watching. In developer.apple.com open CloudKit Database → your app’s container → use the same Development or Production environment as this build → Schema: record type VolleyballLiveViewer with fields joinCode (String) and updatedAt (Date/Time), plus a queryable index on joinCode so CloudKit can filter on it. Live scores can still work; only the count needs this. Reopen this screen after schema/index changes."
+                            )
+                                .font(.caption)
+                                .foregroundStyle(.orange)
+                            if let detail = liveSpectatorsErrorDetail {
+                                Text("Details: \(detail)")
+                                    .font(.caption2.monospaced())
+                                    .foregroundStyle(.secondary)
+                                    .textSelection(.enabled)
+                            }
+                        } else {
+                            Text(liveSpectatorsCount == 1
+                                ? "About 1 device is watching (Watch tab open, last ~45 seconds)."
+                                : "About \(liveSpectatorsCount) devices are watching (Watch tab open, last ~45 seconds).")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
                     } else {
                         TextField("Join code", text: $liveDraftCode)
                             .font(.title3.monospaced())
@@ -324,18 +354,32 @@ struct GameView: View {
                 }
 
                 Section {
-                    if liveJoinCodeRef.value != nil {
+                    if let broadcastingCode = activeLiveJoinCode {
                         Button("Stop broadcasting", role: .destructive) {
-                            let code = liveJoinCodeRef.value!
+                            activeLiveJoinCode = nil
                             liveJoinCodeRef.value = nil
+                            liveSpectatorsCount = 0
+                            liveSpectatorsLoadFailed = false
+                            liveSpectatorsErrorDetail = nil
                             Task {
-                                await LiveMatchCloudKit.shared.deleteLiveSession(code: code)
+                                await LiveMatchCloudKit.shared.deleteLiveSession(code: broadcastingCode)
                             }
                         }
+                        .disabled(isSavingLiveBroadcast)
                     } else {
-                        Button("Start broadcasting") {
+                        Button {
                             Task { await startLiveBroadcast() }
+                        } label: {
+                            if isSavingLiveBroadcast {
+                                HStack {
+                                    ProgressView()
+                                    Text("Starting…")
+                                }
+                            } else {
+                                Text("Start broadcasting")
+                            }
                         }
+                        .disabled(isSavingLiveBroadcast)
                     }
                 }
             }
@@ -346,6 +390,42 @@ struct GameView: View {
                     Button("Done") { showLiveBroadcastSheet = false }
                 }
             }
+            .onAppear {
+                ensureLiveDraftJoinCodeIfNeeded()
+            }
+            .task(id: "\(showLiveBroadcastSheet)_\(activeLiveJoinCode ?? "")") {
+                guard showLiveBroadcastSheet, activeLiveJoinCode != nil else { return }
+                while !Task.isCancelled {
+                    await refreshLiveSpectatorCountForSheet()
+                    try? await Task.sleep(for: .seconds(4))
+                }
+            }
+        }
+    }
+
+    /// Ensures the draft code is always 6 valid characters so **Start broadcasting** stays tappable after opening the sheet.
+    private func ensureLiveDraftJoinCodeIfNeeded() {
+        guard activeLiveJoinCode == nil else { return }
+        if LiveMatchCloudKit.normalizeJoinCode(liveDraftCode) == nil {
+            liveDraftCode = LiveMatchCloudKit.generateJoinCode()
+        }
+    }
+
+    private func refreshLiveSpectatorCountForSheet() async {
+        guard let code = activeLiveJoinCode else {
+            liveSpectatorsCount = 0
+            liveSpectatorsLoadFailed = false
+            liveSpectatorsErrorDetail = nil
+            return
+        }
+        do {
+            let n = try await LiveMatchCloudKit.shared.fetchActiveViewerCount(joinCode: code)
+            liveSpectatorsCount = n
+            liveSpectatorsLoadFailed = false
+            liveSpectatorsErrorDetail = nil
+        } catch {
+            liveSpectatorsLoadFailed = true
+            liveSpectatorsErrorDetail = (error as? LiveMatchCloudError)?.errorDescription ?? error.localizedDescription
         }
     }
 
@@ -359,16 +439,42 @@ struct GameView: View {
         await MainActor.run {
             liveDraftCode = normalized
             liveBroadcastError = nil
+            isSavingLiveBroadcast = true
         }
         do {
-            try await LiveMatchCloudKit.shared.pushLiveSession(code: normalized, game: game)
+            try await withCloudKitTimeout(seconds: 45) {
+                try await LiveMatchCloudKit.shared.pushLiveSession(code: normalized, game: game)
+            }
             await MainActor.run {
                 liveJoinCodeRef.value = normalized
+                activeLiveJoinCode = normalized
+                isSavingLiveBroadcast = false
             }
         } catch {
             await MainActor.run {
                 liveBroadcastError = (error as? LiveMatchCloudError)?.errorDescription ?? error.localizedDescription
+                isSavingLiveBroadcast = false
             }
+        }
+    }
+
+    /// Races the operation against a timeout so the UI does not sit silent on slow or stuck CloudKit.
+    private func withCloudKitTimeout<T>(seconds: Double, operation: @escaping () async throws -> T) async throws -> T {
+        try await withThrowingTaskGroup(of: T.self) { group in
+            group.addTask {
+                try await operation()
+            }
+            group.addTask {
+                try await Task.sleep(for: .seconds(seconds))
+                throw LiveMatchCloudError.cloudKit(
+                    "No response from iCloud after \(Int(seconds)) seconds. Check Wi‑Fi or cellular and try again."
+                )
+            }
+            defer { group.cancelAll() }
+            guard let first = try await group.next() else {
+                throw LiveMatchCloudError.cloudKit("Broadcast failed.")
+            }
+            return first
         }
     }
 

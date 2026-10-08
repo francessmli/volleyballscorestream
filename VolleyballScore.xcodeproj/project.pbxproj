@@ -16,10 +16,14 @@
 		A10000000000000000000007 /* NewMatchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000007 /* NewMatchView.swift */; };
 		A10000000000000000000008 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000008 /* SettingsView.swift */; };
 		A10000000000000000000009 /* WhatsAppShare.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000009 /* WhatsAppShare.swift */; };
+		A1000000000000000000000A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000A /* Assets.xcassets */; };
+		A1000000000000000000001A /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001A /* PrivacyInfo.xcprivacy */; };
 		A1000000000000000000000B /* OrientationHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000C /* OrientationHelper.swift */; };
 		A1000000000000000000000D /* WatchLiveFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000E /* WatchLiveFlow.swift */; };
 		A1000000000000000000000E /* LiveMatchCloudKit.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000F /* LiveMatchCloudKit.swift */; };
-		A1000000000000000000000A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000A /* Assets.xcassets */; };
+		A10000000000000000000011 /* LiveWatchSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000011 /* LiveWatchSession.swift */; };
+		A10000000000000000000012 /* LiveScoreboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000012 /* LiveScoreboardView.swift */; };
+		A10000000000000000000013 /* AdaptiveLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000013 /* AdaptiveLayout.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -32,12 +36,16 @@
 		A20000000000000000000007 /* NewMatchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewMatchView.swift; sourceTree = "<group>"; };
 		A20000000000000000000008 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		A20000000000000000000009 /* WhatsAppShare.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhatsAppShare.swift; sourceTree = "<group>"; };
+		A2000000000000000000000A /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		A2000000000000000000000B /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A2000000000000000000000C /* OrientationHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrientationHelper.swift; sourceTree = "<group>"; };
 		A2000000000000000000000E /* WatchLiveFlow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchLiveFlow.swift; sourceTree = "<group>"; };
 		A2000000000000000000000F /* LiveMatchCloudKit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveMatchCloudKit.swift; sourceTree = "<group>"; };
 		A20000000000000000000010 /* VolleyballScore.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = VolleyballScore.entitlements; sourceTree = "<group>"; };
-		A2000000000000000000000A /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		A2000000000000000000000B /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		A20000000000000000000011 /* LiveWatchSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveWatchSession.swift; sourceTree = "<group>"; };
+		A20000000000000000000012 /* LiveScoreboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveScoreboardView.swift; sourceTree = "<group>"; };
+		A20000000000000000000013 /* AdaptiveLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdaptiveLayout.swift; sourceTree = "<group>"; };
+		A2000000000000000000001A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		A20000000000000000000100 /* VolleyballScore.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = VolleyballScore.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -75,6 +83,10 @@
 				A2000000000000000000000C /* OrientationHelper.swift */,
 				A2000000000000000000000E /* WatchLiveFlow.swift */,
 				A2000000000000000000000F /* LiveMatchCloudKit.swift */,
+				A20000000000000000000011 /* LiveWatchSession.swift */,
+				A20000000000000000000012 /* LiveScoreboardView.swift */,
+				A20000000000000000000013 /* AdaptiveLayout.swift */,
+				A2000000000000000000001A /* PrivacyInfo.xcprivacy */,
 				A20000000000000000000010 /* VolleyballScore.entitlements */,
 				A2000000000000000000000B /* Info.plist */,
 				A2000000000000000000000A /* Assets.xcassets */,
@@ -149,6 +161,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A1000000000000000000000A /* Assets.xcassets in Resources */,
+				A1000000000000000000001A /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -171,6 +184,9 @@
 				A1000000000000000000000B /* OrientationHelper.swift in Sources */,
 				A1000000000000000000000D /* WatchLiveFlow.swift in Sources */,
 				A1000000000000000000000E /* LiveMatchCloudKit.swift in Sources */,
+				A10000000000000000000011 /* LiveWatchSession.swift in Sources */,
+				A10000000000000000000012 /* LiveScoreboardView.swift in Sources */,
+				A10000000000000000000013 /* AdaptiveLayout.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -207,6 +223,7 @@
 				CLANG_WARN_SUSPICIOUS_MOVE = YES;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -266,6 +283,7 @@
 				CLANG_WARN_SUSPICIOUS_MOVE = YES;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
@@ -294,7 +312,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = VolleyballScore/VolleyballScore.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = 33D87RPMMM;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = VolleyballScore/Info.plist;
@@ -309,7 +327,7 @@
 				SUPPORTS_MACCATALYST = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = 1;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
 		};
@@ -319,7 +337,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = VolleyballScore/VolleyballScore.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEVELOPMENT_TEAM = 33D87RPMMM;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = VolleyballScore/Info.plist;
@@ -334,7 +352,7 @@
 				SUPPORTS_MACCATALYST = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = 1;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
 		};

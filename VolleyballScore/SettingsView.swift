@@ -28,6 +28,7 @@ struct SettingsView: View {
 
             bottomActionBar
         }
+        .cappedWidth()
         .navigationTitle("Settings")
         .onAppear {
             autoShareDraft = autoShareSaved

@@ -5,32 +5,54 @@ struct HistoryView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \MatchRecord.startedAt, order: .reverse) private var matches: [MatchRecord]
 
+    /// Selected match id. Using `NavigationSplitView` (rather than a plain `NavigationStack`)
+    /// gives us a sidebar + detail layout on iPad for free, while still collapsing to a normal
+    /// push/pop stack on iPhone's compact width — no extra platform-specific code needed.
+    @State private var selection: MatchRecord.ID?
+
     var body: some View {
-        Group {
-            if matches.isEmpty {
-                ContentUnavailableView(
-                    "No matches yet",
-                    systemImage: "clock",
-                    description: Text("Finished and saved games appear here.")
-                )
-            } else {
-                List {
-                    ForEach(matches) { record in
-                        NavigationLink {
-                            MatchDetailView(record: record)
-                        } label: {
-                            HistoryRow(record: record)
+        NavigationSplitView {
+            Group {
+                if matches.isEmpty {
+                    ContentUnavailableView(
+                        "No matches yet",
+                        systemImage: "clock",
+                        description: Text("Finished and saved games appear here.")
+                    )
+                } else {
+                    List(selection: $selection) {
+                        ForEach(matches) { record in
+                            NavigationLink(value: record.id) {
+                                HistoryRow(record: record)
+                            }
                         }
+                        .onDelete(perform: deleteMatches)
                     }
-                    .onDelete(perform: deleteMatches)
                 }
             }
+            .navigationTitle("History")
+        } detail: {
+            if let id = selection, let record = matches.first(where: { $0.id == id }) {
+                MatchDetailView(record: record)
+            } else {
+                ContentUnavailableView(
+                    "Select a match",
+                    systemImage: "sportscourt",
+                    description: Text("Choose a match from the list to see its details.")
+                )
+            }
         }
-        .navigationTitle("History")
+        .onChange(of: matches) { _, newMatches in
+            // Keep selection valid if the selected match was deleted.
+            if let id = selection, !newMatches.contains(where: { $0.id == id }) {
+                selection = nil
+            }
+        }
     }
 
     private func deleteMatches(at offsets: IndexSet) {
         for index in offsets {
+            if matches[index].id == selection { selection = nil }
             modelContext.delete(matches[index])
         }
         try? modelContext.save()
@@ -65,7 +87,6 @@ private struct HistoryRow: View {
 
 struct MatchDetailView: View {
     @Environment(\.modelContext) private var modelContext
-    @Environment(\.dismiss) private var dismiss
 
     let record: MatchRecord
 
@@ -106,6 +127,7 @@ struct MatchDetailView: View {
                 }
             }
         }
+        .cappedWidth(900)
         .navigationTitle("Match detail")
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -130,7 +152,8 @@ struct MatchDetailView: View {
             Button("Delete", role: .destructive) {
                 modelContext.delete(record)
                 try? modelContext.save()
-                dismiss()
+                // Note: selection clearing (and thus detail dismissal on iPhone's
+                // collapsed stack) is handled by HistoryView's `onChange(of: matches)`.
             }
         } message: {
             Text("This removes the game from history on this device.")

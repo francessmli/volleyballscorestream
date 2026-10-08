@@ -3,10 +3,10 @@ import SwiftUI
 
 /// Spectators enter the 6-character code from the scorekeeper and see scores update every few seconds via CloudKit (public database).
 struct WatchLiveView: View {
+    @Bindable var watchSession: LiveWatchSession
+    let onOpenScoreboard: () -> Void
+
     @State private var codeInput = ""
-    @State private var snapshot: LiveSessionSnapshot?
-    @State private var isWatching = false
-    @State private var errorMessage: String?
     @State private var iCloudStatus: CKAccountStatus?
     var body: some View {
         ScrollView {
@@ -30,28 +30,44 @@ struct WatchLiveView: View {
                             .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
 
                         HStack(spacing: 12) {
-                            Button(isWatching ? "Stop" : "Watch") {
-                                if isWatching {
+                            Button(watchSession.isWatching ? "Stop" : "Watch") {
+                                if watchSession.isWatching {
                                     stopWatching()
                                 } else {
                                     Task { await startWatching() }
                                 }
                             }
                             .buttonStyle(.borderedProminent)
-                            .disabled(codeInput.filter { $0.isLetter || $0.isNumber }.count != 6 && !isWatching)
+                            .disabled(codeInput.filter { $0.isLetter || $0.isNumber }.count != 6 && !watchSession.isWatching)
+
+                            if watchSession.isWatching, watchSession.snapshot != nil {
+                                Button("Open scoreboard") {
+                                    onOpenScoreboard()
+                                }
+                            }
                         }
                     }
                 }
 
-                if let snap = snapshot {
+                if let snap = watchSession.snapshot {
                     liveScoreCard(snap)
-                } else if isWatching {
-                    ProgressView("Waiting for scores…")
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 24)
+                } else if watchSession.isWatching {
+                    VStack(spacing: 12) {
+                        if watchSession.isAwaitingFirstSnapshotSilently {
+                            Text(
+                                "Connecting to iCloud… Ask the scorekeeper to confirm broadcasting is on and the code matches. If this lasts more than about a minute, both phones must use the same app source (Xcode build = CloudKit Development; TestFlight or App Store = Production)."
+                            )
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                        }
+                        ProgressView("Waiting for scores…")
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 24)
                 }
 
-                if let err = errorMessage {
+                if let err = watchSession.errorMessage {
                     Text(err)
                         .font(.footnote)
                         .foregroundStyle(.red)
@@ -64,14 +80,14 @@ struct WatchLiveView: View {
                 .foregroundStyle(.secondary)
             }
             .padding()
+            .cappedWidth()
         }
         .navigationTitle("Watch")
         .task {
-            iCloudStatus = await LiveMatchCloudKit.shared.accountStatus()
-        }
-        .onReceive(Timer.publish(every: 2, on: .main, in: .common).autoconnect()) { _ in
-            guard isWatching else { return }
-            Task { await refresh() }
+            iCloudStatus = await watchSession.accountStatus()
+            if codeInput.isEmpty, let active = watchSession.activeCode {
+                codeInput = active
+            }
         }
     }
 
@@ -141,46 +157,13 @@ struct WatchLiveView: View {
     }
 
     private func startWatching() async {
-        errorMessage = nil
-        snapshot = nil
-        guard LiveMatchCloudKit.normalizeJoinCode(codeInput) != nil else {
-            errorMessage = LiveMatchCloudError.invalidJoinCode.errorDescription
-            return
+        await watchSession.startWatching(code: codeInput)
+        if let normalized = watchSession.activeCode {
+            codeInput = normalized
         }
-        isWatching = true
-        await refresh()
     }
 
     private func stopWatching() {
-        isWatching = false
-        snapshot = nil
-        errorMessage = nil
-    }
-
-    private func refresh() async {
-        guard isWatching else { return }
-        guard let normalized = LiveMatchCloudKit.normalizeJoinCode(codeInput) else { return }
-        do {
-            let next = try await LiveMatchCloudKit.shared.fetchLiveSession(code: normalized)
-            await MainActor.run {
-                snapshot = next
-                errorMessage = nil
-            }
-        } catch let e as LiveMatchCloudError {
-            await MainActor.run {
-                if case .sessionNotFound = e, snapshot == nil {
-                    errorMessage = e.errorDescription
-                } else if case .sessionNotFound = e, snapshot != nil {
-                    // keep last snapshot if briefly missing
-                    errorMessage = nil
-                } else {
-                    errorMessage = e.errorDescription
-                }
-            }
-        } catch {
-            await MainActor.run {
-                errorMessage = error.localizedDescription
-            }
-        }
+        watchSession.stopWatching()
     }
 }
