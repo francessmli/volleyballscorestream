@@ -18,9 +18,16 @@ final class GameEngine {
     var currentPointsB: Int = 0
     var completedSets: [(Int, Int)] = []
 
+    /// True right after a set ends (cap reached + 2-point lead) while the match continues.
+    /// The scoreboard intentionally keeps showing the just-finished set's final score
+    /// (instead of silently snapping to 0–0) until `startNextSet()` is called explicitly,
+    /// so everyone can see/confirm the result before the next set begins.
+    var isSetAwaitingStart: Bool = false
+
     private struct Snapshot {
         var ca, cb, sa, sb: Int
         var completed: [(Int, Int)]
+        var awaitingStart: Bool
     }
 
     private var undoStack: [Snapshot] = []
@@ -47,7 +54,8 @@ final class GameEngine {
             cb: currentPointsB,
             sa: setsWonA,
             sb: setsWonB,
-            completed: completedSets
+            completed: completedSets,
+            awaitingStart: isSetAwaitingStart
         ))
     }
 
@@ -66,7 +74,7 @@ final class GameEngine {
     }
 
     func scorePoint(_ side: VolleyballSide) {
-        guard !isMatchComplete else { return }
+        guard !isMatchComplete, !isSetAwaitingStart else { return }
         pushSnapshot()
         switch side {
         case .a: currentPointsA += 1
@@ -80,7 +88,7 @@ final class GameEngine {
 
     /// Swipe up increases, swipe down decreases (that side only).
     func nudgeScore(side: VolleyballSide, up: Bool) {
-        guard !isMatchComplete else { return }
+        guard !isMatchComplete, !isSetAwaitingStart else { return }
         if up {
             scorePoint(side)
         } else {
@@ -103,12 +111,13 @@ final class GameEngine {
         setsWonA = snap.sa
         setsWonB = snap.sb
         completedSets = snap.completed
+        isSetAwaitingStart = snap.awaitingStart
         scoreDidChange?()
     }
 
     /// Clears the current set to 0–0 without recording a winner.
     func restartCurrentSet() {
-        guard !isMatchComplete else { return }
+        guard !isMatchComplete, !isSetAwaitingStart else { return }
         guard currentPointsA > 0 || currentPointsB > 0 else { return }
         pushSnapshot()
         currentPointsA = 0
@@ -119,7 +128,7 @@ final class GameEngine {
     /// Records the current rally score as a finished set (higher score wins). Returns `false` if tied.
     @discardableResult
     func endCurrentSetManually() -> Bool {
-        guard !isMatchComplete else { return false }
+        guard !isMatchComplete, !isSetAwaitingStart else { return false }
         if currentPointsA == currentPointsB { return false }
         let winner: VolleyballSide = currentPointsA > currentPointsB ? .a : .b
         pushSnapshot()
@@ -134,8 +143,27 @@ final class GameEngine {
         case .a: setsWonA += 1
         case .b: setsWonB += 1
         }
+        if isMatchComplete {
+            // No next set to start — the match-complete flow takes over immediately,
+            // so there's nothing to keep on screen.
+            currentPointsA = 0
+            currentPointsB = 0
+        } else {
+            // Keep showing this set's final score until the scorekeeper explicitly
+            // starts the next one via `startNextSet()`.
+            isSetAwaitingStart = true
+        }
+    }
+
+    /// Explicit action to dismiss the just-finished set's score and begin the next set at 0–0.
+    /// No-ops if there is no set awaiting start (e.g. already dismissed, or match complete).
+    func startNextSet() {
+        guard isSetAwaitingStart, !isMatchComplete else { return }
+        pushSnapshot()
         currentPointsA = 0
         currentPointsB = 0
+        isSetAwaitingStart = false
+        scoreDidChange?()
     }
 
     func summaryMessage() -> String {

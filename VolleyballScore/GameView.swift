@@ -15,6 +15,7 @@ struct GameView: View {
     @State private var showEndGameConfirm = false
     @State private var showTiedSetAlert = false
     @State private var showMatchComplete = false
+    @State private var showSetComplete = false
     @State private var didPersistCompletedMatch = false
 
     @State private var showLiveBroadcastSheet = false
@@ -137,6 +138,9 @@ struct GameView: View {
             saveCompletedMatch()
             showMatchComplete = true
         }
+        .onChange(of: game.isSetAwaitingStart) { _, awaiting in
+            showSetComplete = awaiting
+        }
         .alert("End match?", isPresented: $showEndGameConfirm) {
             Button("Cancel", role: .cancel) {}
             Button("End game", role: .destructive) {
@@ -155,6 +159,18 @@ struct GameView: View {
         } message: {
             Text("\(winnerName) wins.")
         }
+        .alert("Set complete", isPresented: $showSetComplete) {
+            Button("Start next set") {
+                game.startNextSet()
+            }
+        } message: {
+            Text(setCompleteMessage)
+        }
+    }
+
+    private var setCompleteMessage: String {
+        guard let last = game.completedSets.last else { return "" }
+        return "Set \(game.completedSets.count): \(game.teamAName) \(last.0) – \(last.1) \(game.teamBName)\n\nMatch sets \(game.setsWonA)–\(game.setsWonB)"
     }
 
     private var winnerName: String {
@@ -208,7 +224,7 @@ struct GameView: View {
             centerStrip
             VStack {
                 Spacer(minLength: 0)
-                Text("SET \(game.completedSets.count + 1)")
+                Text(game.isSetAwaitingStart ? "SET \(game.completedSets.count) FINAL" : "SET \(game.completedSets.count + 1)")
                     .font(.system(size: max(12, setLabelSize * 0.72), weight: .heavy, design: .rounded))
                     .foregroundStyle(.white.opacity(0.78))
                     .minimumScaleFactor(0.5)
@@ -254,7 +270,7 @@ struct GameView: View {
                 controlButton(title: "Restart set", color: Color.white.opacity(0.18)) {
                     game.restartCurrentSet()
                 }
-                .disabled(game.isMatchComplete || (game.currentPointsA == 0 && game.currentPointsB == 0))
+                .disabled(game.isMatchComplete || game.isSetAwaitingStart || (game.currentPointsA == 0 && game.currentPointsB == 0))
 
                 controlButton(title: "End set", color: Color.white.opacity(0.22)) {
                     if game.endCurrentSetManually() {
@@ -263,7 +279,7 @@ struct GameView: View {
                         showTiedSetAlert = true
                     }
                 }
-                .disabled(game.isMatchComplete || (game.currentPointsA == 0 && game.currentPointsB == 0))
+                .disabled(game.isMatchComplete || game.isSetAwaitingStart || (game.currentPointsA == 0 && game.currentPointsB == 0))
 
                 controlButton(title: "End game", color: Color.orange.opacity(0.35)) {
                     showEndGameConfirm = true
