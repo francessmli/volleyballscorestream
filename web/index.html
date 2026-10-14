@@ -199,7 +199,7 @@
   // ======================================================================
   var CONTAINER_IDENTIFIER = "iCloud.com.francesl.volleyballscore";
   var ENVIRONMENT = "production"; // "development" while testing via Xcode/TestFlight-from-Xcode, "production" for App Store / TestFlight-from-App-Store-Connect builds.
-  var API_TOKEN = ""; // CloudKit Dashboard → container → API Access → Tokens.
+  var API_TOKEN = "496187a14025e5eb4c81cb394087e79ec122a9d57631f7fbe87cb33adcce26dc"; // CloudKit Dashboard → container → API Access → Tokens.
   // ======================================================================
 
   var RECORD_TYPE = "VolleyballLiveSession";
@@ -346,7 +346,8 @@
   stopButton.addEventListener("click", stopWatching);
 
   document.addEventListener("DOMContentLoaded", function () {
-    if (!API_TOKEN || API_TOKEN === "YOUR_API_TOKEN_HERE") {
+    var PLACEHOLDERS = ["", "PASTE_TOKEN_HERE", "YOUR_API_TOKEN_HERE"];
+    if (PLACEHOLDERS.indexOf(API_TOKEN) !== -1) {
       showError(
         "This page isn't configured yet. See web/README.md: generate a CloudKit Web Services API token and paste it into index.html."
       );
