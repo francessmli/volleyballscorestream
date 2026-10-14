@@ -144,10 +144,9 @@ final class GameEngine {
         case .b: setsWonB += 1
         }
         if isMatchComplete {
-            // No next set to start — the match-complete flow takes over immediately,
-            // so there's nothing to keep on screen.
-            currentPointsA = 0
-            currentPointsB = 0
+            // Keep the final set's score visible (no silent reset) — there's no next
+            // set to start, and the GameView CTA ("End game") will persist + navigate
+            // away explicitly once the scorekeeper confirms.
         } else {
             // Keep showing this set's final score until the scorekeeper explicitly
             // starts the next one via `startNextSet()`.
@@ -170,14 +169,25 @@ final class GameEngine {
         let setsLine = completedSets.enumerated().map { i, s in
             "Set \(i + 1): \(teamAName) \(s.0) – \(s.1) \(teamBName)"
         }.joined(separator: "\n")
-        let current = "Current set \(completedSets.count + 1): \(teamAName) \(currentPointsA) – \(currentPointsB) \(teamBName)"
         let match = "Sets: \(teamAName) \(setsWonA) – \(setsWonB) \(teamBName)"
+        if isMatchComplete {
+            // The final set's score is already included in `setsLine`; avoid repeating
+            // it as a bogus "current set" line now that the match has ended.
+            return setsLine.isEmpty ? match : [match, setsLine].joined(separator: "\n")
+        }
+        let current = "Current set \(completedSets.count + 1): \(teamAName) \(currentPointsA) – \(currentPointsB) \(teamBName)"
         if setsLine.isEmpty { return [match, current].joined(separator: "\n") }
         return [match, setsLine, current].joined(separator: "\n")
     }
 
     func makeRecord(endedAt: Date = .now, abandoned: Bool = false) -> MatchRecord {
-        MatchRecord(
+        // When the match is complete, `currentPoints` still holds the final set's score
+        // (kept on screen intentionally — see `completeCurrentSet`), which was already
+        // captured in `completedSets`. Reporting it again here would incorrectly show up
+        // as a duplicate "unfinished set" in History, so it's zeroed only for storage.
+        let unfinishedA = isMatchComplete ? 0 : currentPointsA
+        let unfinishedB = isMatchComplete ? 0 : currentPointsB
+        return MatchRecord(
             teamAName: teamAName,
             teamBName: teamBName,
             bestOf: bestOf,
@@ -186,8 +196,8 @@ final class GameEngine {
             completedSetsJSON: MatchRecordCoding.encodeSets(completedSets),
             setsWonA: setsWonA,
             setsWonB: setsWonB,
-            finalPointsA: currentPointsA,
-            finalPointsB: currentPointsB,
+            finalPointsA: unfinishedA,
+            finalPointsB: unfinishedB,
             winnerIsA: abandoned ? nil : (isMatchComplete ? setsWonA > setsWonB : nil)
         )
     }

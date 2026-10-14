@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>VolleyballScore — Watch Live</title>
+<style>
+  :root {
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: #000;
+    color: #fff;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ---------- Entry form (shown before watching) ---------- */
+  #entryScreen {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    gap: 16px;
+    text-align: center;
+  }
+  #entryScreen h1 { font-size: 1.4rem; margin: 0 0 4px; }
+  #entryScreen p { color: #999; font-size: 0.9rem; max-width: 420px; margin: 0; }
+  #codeInput {
+    font-size: 1.4rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    text-align: center;
+    padding: 14px 16px;
+    width: 220px;
+    max-width: 80vw;
+    border-radius: 12px;
+    border: 1px solid #444;
+    background: #1c1c1e;
+    color: #fff;
+  }
+  #codeInput:focus { outline: 2px solid #0a84ff; }
+  button {
+    font-size: 1rem;
+    font-weight: 600;
+    padding: 14px 28px;
+    border-radius: 12px;
+    border: none;
+    background: #0a84ff;
+    color: #fff;
+    cursor: pointer;
+  }
+  button:disabled { opacity: 0.5; cursor: default; }
+  button.secondary { background: rgba(255,255,255,0.15); }
+  #entryError {
+    color: #ff6b6b;
+    font-size: 0.85rem;
+    max-width: 420px;
+    min-height: 1.2em;
+  }
+
+  /* ---------- Scoreboard (shown while watching) ---------- */
+  #scoreboard { display: none; flex: 1; flex-direction: column; min-height: 100vh; }
+  #scorePanels { flex: 1; display: flex; }
+  .side-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding-top: 7vh;
+    gap: 10px;
+  }
+  .side-a { background: #0f4799; }
+  .side-b { background: #c71a24; }
+  .side-score {
+    font-size: min(22vw, 140px);
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+    text-shadow: 0 2px 6px rgba(0,0,0,0.35);
+  }
+  .side-name {
+    font-size: 1.2rem;
+    font-weight: 700;
+    text-align: center;
+    padding: 0 12px;
+    max-width: 90%;
+  }
+  .side-sets {
+    font-size: 0.85rem;
+    color: rgba(255,255,255,0.75);
+  }
+  #centerStrip {
+    width: 90px;
+    background: #141414;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-left: 1px solid rgba(255,255,255,0.12);
+    border-right: 1px solid rgba(255,255,255,0.12);
+  }
+  #setLabel {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    color: rgba(255,255,255,0.78);
+    font-size: 1rem;
+  }
+  #footer {
+    padding: 14px 16px calc(14px + env(safe-area-inset-bottom));
+    background: rgba(255,255,255,0.06);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    text-align: center;
+  }
+  #footer .code-label { font-weight: 600; font-size: 0.85rem; }
+  #footer .sets-summary { font-size: 0.75rem; color: #999; }
+  #footer .updated { font-size: 0.7rem; color: #666; }
+  #matchCompleteBadge {
+    display: none;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #30d158;
+  }
+
+  @media (min-width: 700px) {
+    .side-score { font-size: min(14vw, 220px); }
+    .side-name { font-size: 1.6rem; }
+    #centerStrip { width: 130px; }
+    #setLabel { font-size: 1.3rem; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Entry screen: enter / confirm the 6-character join code -->
+<div id="entryScreen">
+  <h1>🏐 VolleyballScore — Watch Live</h1>
+  <p>Enter the 6-character code shown on the scorekeeper's "Broadcast for spectators" screen.</p>
+  <input id="codeInput" maxlength="6" placeholder="ABC123" autocapitalize="characters" autocomplete="off" autocorrect="off" spellcheck="false">
+  <button id="watchButton">Watch</button>
+  <div id="entryError"></div>
+  <p style="font-size:0.75rem;color:#555;max-width:420px;">
+    This page reads live scores directly from the scorekeeper's iCloud public database
+    via Apple's CloudKit — the same data the app's own "Watch" tab uses. No account or
+    sign-in is required to view.
+  </p>
+</div>
+
+<!-- Scoreboard: shown once watching starts -->
+<div id="scoreboard">
+  <div id="scorePanels">
+    <div class="side-panel side-a">
+      <div class="side-score" id="scoreA">0</div>
+      <div class="side-name" id="nameA">Team A</div>
+      <div class="side-sets" id="setsA">Sets won: 0</div>
+    </div>
+    <div id="centerStrip">
+      <div id="setLabel">SET 1</div>
+    </div>
+    <div class="side-panel side-b">
+      <div class="side-score" id="scoreB">0</div>
+      <div class="side-name" id="nameB">Team B</div>
+      <div class="side-sets" id="setsB">Sets won: 0</div>
+    </div>
+  </div>
+  <div id="footer">
+    <div class="code-label">Watching code <span id="watchingCode"></span></div>
+    <div id="matchCompleteBadge">🏁 Match complete</div>
+    <div class="sets-summary" id="completedSetsSummary"></div>
+    <div class="updated" id="updatedAt"></div>
+    <button class="secondary" id="stopButton">Stop watching</button>
+  </div>
+</div>
+
+<!--
+  CloudKit JS reads directly from Apple's CloudKit public database — the exact same
+  rows the iOS app's "Watch" tab reads. See README.md in this folder for the one-time
+  CloudKit Dashboard setup (API token + allowed origins + security roles) required
+  before this page will work.
+-->
+<script src="https://cdn.apple-cloudkit.com/cloudkit/2/cloudkit.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  // ======================================================================
+  // CONFIG — fill these in once, per the setup steps in web/README.md.
+  // ======================================================================
+  var CONTAINER_IDENTIFIER = "iCloud.com.francesl.volleyballscore";
+  var ENVIRONMENT = "production"; // "development" while testing via Xcode/TestFlight-from-Xcode, "production" for App Store / TestFlight-from-App-Store-Connect builds.
+  var API_TOKEN = ""; // CloudKit Dashboard → container → API Access → Tokens.
+  // ======================================================================
+
+  var RECORD_TYPE = "VolleyballLiveSession";
+  var POLL_INTERVAL_MS = 3000;
+
+  var entryScreen = document.getElementById("entryScreen");
+  var scoreboard = document.getElementById("scoreboard");
+  var codeInput = document.getElementById("codeInput");
+  var watchButton = document.getElementById("watchButton");
+  var entryError = document.getElementById("entryError");
+  var stopButton = document.getElementById("stopButton");
+
+  var pollTimer = null;
+  var currentCode = null;
+
+  function normalizeCode(raw) {
+    var upper = (raw || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+    return upper.length === 6 ? upper : null;
+  }
+
+  function fieldValue(record, name) {
+    var f = record.fields && record.fields[name];
+    return f ? f.value : undefined;
+  }
+
+  function decodeCompletedSets(json) {
+    try {
+      var arr = JSON.parse(json || "[]");
+      if (!Array.isArray(arr)) return [];
+      return arr.filter(function (pair) {
+        return Array.isArray(pair) && pair.length === 2;
+      });
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function render(record) {
+    var teamA = fieldValue(record, "teamAName") || "Team A";
+    var teamB = fieldValue(record, "teamBName") || "Team B";
+    var setsWonA = fieldValue(record, "setsWonA") || 0;
+    var setsWonB = fieldValue(record, "setsWonB") || 0;
+    var currentA = fieldValue(record, "currentPointsA") || 0;
+    var currentB = fieldValue(record, "currentPointsB") || 0;
+    var completedSets = decodeCompletedSets(fieldValue(record, "completedSetsJSON"));
+    var matchComplete = !!fieldValue(record, "matchComplete");
+    var updatedAtMs = fieldValue(record, "updatedAt");
+
+    document.getElementById("nameA").textContent = teamA;
+    document.getElementById("nameB").textContent = teamB;
+    document.getElementById("scoreA").textContent = currentA;
+    document.getElementById("scoreB").textContent = currentB;
+    document.getElementById("setsA").textContent = "Sets won: " + setsWonA;
+    document.getElementById("setsB").textContent = "Sets won: " + setsWonB;
+    document.getElementById("setLabel").textContent = "SET " + (completedSets.length + (matchComplete ? 0 : 1));
+
+    var summary = completedSets.map(function (p) { return p[0] + "–" + p[1]; }).join("  ·  ");
+    document.getElementById("completedSetsSummary").textContent = summary;
+
+    document.getElementById("matchCompleteBadge").style.display = matchComplete ? "block" : "none";
+
+    if (updatedAtMs) {
+      var d = new Date(updatedAtMs);
+      document.getElementById("updatedAt").textContent = "Updated " + d.toLocaleTimeString();
+    }
+  }
+
+  function showError(message) {
+    entryError.textContent = message;
+  }
+
+  function getPublicDB() {
+    return CloudKit.getDefaultContainer().publicCloudDatabase;
+  }
+
+  function fetchAndRender(code) {
+    return getPublicDB().fetchRecords(code).then(function (response) {
+      var rec = response.records && response.records[0];
+      if (!rec || rec.recordType !== RECORD_TYPE) {
+        var reason = (rec && rec.reason) || "No live match found for that code.";
+        throw new Error(reason);
+      }
+      render(rec);
+      entryError.textContent = "";
+    });
+  }
+
+  function startWatching(code) {
+    currentCode = code;
+    document.getElementById("watchingCode").textContent = code;
+    entryScreen.style.display = "none";
+    scoreboard.style.display = "flex";
+
+    // Reflect the join code in the URL so this page's link is directly shareable/bookmarkable.
+    try {
+      var url = new URL(window.location.href);
+      url.searchParams.set("code", code);
+      window.history.replaceState({}, "", url.toString());
+    } catch (e) { /* older browsers: ignore */ }
+
+    fetchAndRender(code).catch(function (err) {
+      showError(err.message || "Could not load the live match.");
+    });
+
+    if (pollTimer) clearInterval(pollTimer);
+    pollTimer = setInterval(function () {
+      fetchAndRender(code).catch(function () {
+        // Transient misses are common (brief server hiccups); keep showing the last
+        // known score instead of flashing an error on every failed poll.
+      });
+    }, POLL_INTERVAL_MS);
+  }
+
+  function stopWatching() {
+    if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+    currentCode = null;
+    scoreboard.style.display = "none";
+    entryScreen.style.display = "flex";
+    entryError.textContent = "";
+    try {
+      var url = new URL(window.location.href);
+      url.searchParams.delete("code");
+      window.history.replaceState({}, "", url.toString());
+    } catch (e) { /* ignore */ }
+  }
+
+  function attemptWatchFromInput() {
+    var code = normalizeCode(codeInput.value);
+    if (!code) {
+      showError("Enter a 6-character code (letters and numbers).");
+      return;
+    }
+    showError("");
+    startWatching(code);
+  }
+
+  watchButton.addEventListener("click", attemptWatchFromInput);
+  codeInput.addEventListener("keydown", function (e) {
+    if (e.key === "Enter") attemptWatchFromInput();
+  });
+  codeInput.addEventListener("input", function () {
+    codeInput.value = codeInput.value.toUpperCase();
+  });
+  stopButton.addEventListener("click", stopWatching);
+
+  document.addEventListener("DOMContentLoaded", function () {
+    if (!API_TOKEN || API_TOKEN === "YOUR_API_TOKEN_HERE") {
+      showError(
+        "This page isn't configured yet. See web/README.md: generate a CloudKit Web Services API token and paste it into index.html."
+      );
+      watchButton.disabled = true;
+      return;
+    }
+
+    CloudKit.configure({
+      containers: [{
+        containerIdentifier: CONTAINER_IDENTIFIER,
+        apiTokenAuth: {
+          apiToken: API_TOKEN,
+          persist: true
+        },
+        environment: ENVIRONMENT
+      }]
+    });
+
+    // Auto-watch if a code was passed via ?code=XXXXXX (e.g. shared from the app).
+    var params = new URLSearchParams(window.location.search);
+    var fromURL = normalizeCode(params.get("code"));
+    if (fromURL) {
+      codeInput.value = fromURL;
+      startWatching(fromURL);
+    }
+  });
+})();
+</script>
+</body>
+</html>

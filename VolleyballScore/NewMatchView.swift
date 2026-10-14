@@ -2,9 +2,15 @@ import SwiftUI
 import UIKit
 
 struct NewMatchView: View {
+    /// Last-used team names persist across matches (e.g. returning here after a game
+    /// ends) so the scorekeeper doesn't have to retype the same names every time.
+    @AppStorage("lastTeamAName") private var savedTeamA: String = ""
+    @AppStorage("lastTeamBName") private var savedTeamB: String = ""
+
     @State private var teamA = ""
     @State private var teamB = ""
     @State private var bestOf = 3
+    @State private var showClearConfirm = false
 
     private enum Field: Hashable {
         case teamA, teamB
@@ -45,8 +51,17 @@ struct NewMatchView: View {
                     dismissKeyboard()
                     let a = teamA.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Team A" : teamA.trimmingCharacters(in: .whitespacesAndNewlines)
                     let b = teamB.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Team B" : teamB.trimmingCharacters(in: .whitespacesAndNewlines)
+                    savedTeamA = a
+                    savedTeamB = b
                     onStart(a, b, bestOf)
                 }
+            }
+            Section {
+                Button("Clear team names", role: .destructive) {
+                    showClearConfirm = true
+                }
+            } footer: {
+                Text("Clears the team names shown here (and remembered for next time). Match history is not affected.")
             }
         }
         .cappedWidth()
@@ -59,6 +74,21 @@ struct NewMatchView: View {
                 }
                 .fontWeight(.semibold)
             }
+        }
+        .onAppear {
+            if teamA.isEmpty { teamA = savedTeamA }
+            if teamB.isEmpty { teamB = savedTeamB }
+        }
+        .alert("Clear team names?", isPresented: $showClearConfirm) {
+            Button("Cancel", role: .cancel) {}
+            Button("Clear", role: .destructive) {
+                teamA = ""
+                teamB = ""
+                savedTeamA = ""
+                savedTeamB = ""
+            }
+        } message: {
+            Text("This clears the Team A and Team B fields on this screen.")
         }
     }
 

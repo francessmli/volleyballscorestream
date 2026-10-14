@@ -30,6 +30,7 @@ struct GameView: View {
     /// cause (missing record type vs. missing index vs. network) is visible instead of guessed.
     @State private var liveSpectatorsErrorDetail: String?
     @State private var liveJoinCodeRef = LiveJoinCodeRef()
+    @AppStorage("webWatchBaseURL") private var webWatchBaseURL: String = ""
 
     private let blueSide = Color(red: 0.06, green: 0.28, blue: 0.62)
     private let redSide = Color(red: 0.78, green: 0.1, blue: 0.14)
@@ -155,9 +156,11 @@ struct GameView: View {
             Text("Scores are tied. Change the score before ending the set.")
         }
         .alert("Match complete", isPresented: $showMatchComplete) {
-            Button("OK") { onReset() }
+            Button("End game") {
+                finishMatchAndGoToHistory()
+            }
         } message: {
-            Text("\(winnerName) wins.")
+            Text(matchCompleteMessage)
         }
         .alert("Set complete", isPresented: $showSetComplete) {
             Button("Start next set") {
@@ -166,6 +169,11 @@ struct GameView: View {
         } message: {
             Text(setCompleteMessage)
         }
+    }
+
+    private var matchCompleteMessage: String {
+        guard let last = game.completedSets.last else { return "\(winnerName) wins." }
+        return "\(winnerName) wins.\n\nFinal set: \(game.teamAName) \(last.0) – \(last.1) \(game.teamBName)\nMatch sets \(game.setsWonA)–\(game.setsWonB)"
     }
 
     private var setCompleteMessage: String {
@@ -224,7 +232,7 @@ struct GameView: View {
             centerStrip
             VStack {
                 Spacer(minLength: 0)
-                Text(game.isSetAwaitingStart ? "SET \(game.completedSets.count) FINAL" : "SET \(game.completedSets.count + 1)")
+                Text((game.isSetAwaitingStart || game.isMatchComplete) ? "SET \(game.completedSets.count) FINAL" : "SET \(game.completedSets.count + 1)")
                     .font(.system(size: max(12, setLabelSize * 0.72), weight: .heavy, design: .rounded))
                     .foregroundStyle(.white.opacity(0.78))
                     .minimumScaleFactor(0.5)
@@ -317,6 +325,18 @@ struct GameView: View {
         )
     }
 
+    /// Builds a shareable link to the hosted web viewer (see `web/index.html`) that
+    /// auto-fills and starts watching this join code. Returns `nil` until the user has
+    /// configured a "Web watch link" base URL in Settings.
+    private func webWatchURL(code: String) -> URL? {
+        let trimmed = webWatchBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, var components = URLComponents(string: trimmed) else { return nil }
+        var items = components.queryItems ?? []
+        items.append(URLQueryItem(name: "code", value: code))
+        components.queryItems = items
+        return components.url
+    }
+
     private var liveBroadcastSheet: some View {
         NavigationStack {
             Form {
@@ -330,6 +350,12 @@ struct GameView: View {
                         Text("Spectators enter this code on the Watch tab. Tap Done to close; open this screen again anytime to refresh the count below.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
+
+                        if let watchLink = webWatchURL(code: broadcastingCode) {
+                            ShareLink(item: watchLink) {
+                                Label("Share watch link", systemImage: "link")
+                            }
+                        }
 
                         if liveSpectatorsLoadFailed {
                             Text(
@@ -510,5 +536,13 @@ struct GameView: View {
             }
         }
         onReset()
+    }
+
+    /// CTA for the "Match complete" alert: the record is already saved (via
+    /// `saveCompletedMatch()` in `onChange(of: game.isMatchComplete)`), so this just
+    /// leaves the score screen and switches to History so the final result is visible.
+    private func finishMatchAndGoToHistory() {
+        onReset()
+        NotificationCenter.default.post(name: .switchToHistoryTab, object: nil)
     }
 }
