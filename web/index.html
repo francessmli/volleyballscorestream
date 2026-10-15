@@ -271,6 +271,7 @@
   // Errors go to the entry form AND the scoreboard footer, since the entry form is hidden while watching.
   function showError(message) {
     entryError.textContent = message;
+    document.getElementById("liveStatus").style.color = "#ff6b6b";
     document.getElementById("liveStatus").textContent = message;
   }
 
@@ -278,15 +279,26 @@
     return CloudKit.getDefaultContainer().publicCloudDatabase;
   }
 
+  function setStatusOK(text) {
+    entryError.textContent = "";
+    document.getElementById("liveStatus").style.color = "#30d158";
+    document.getElementById("liveStatus").textContent = text;
+  }
+
   function fetchAndRender(code) {
     return getPublicDB().fetchRecords(code).then(function (response) {
+      console.log("CloudKit response for " + code, response);
       var rec = response.records && response.records[0];
-      if (!rec || rec.recordType !== RECORD_TYPE) {
-        var reason = (rec && rec.reason) || "No live match found for that code.";
-        throw new Error(reason);
+      if (!rec || rec.serverErrorCode || rec.recordType !== RECORD_TYPE) {
+        var reason = (rec && (rec.reason || rec.serverErrorCode)) || "No live match found for that code.";
+        throw new Error(reason + (rec && rec.recordType ? " (type: " + rec.recordType + ")" : ""));
+      }
+      var fieldNames = Object.keys(rec.fields || {});
+      if (fieldNames.length === 0) {
+        throw new Error("Record found but has no fields. Check the code and environment.");
       }
       render(rec);
-      showError("");
+      setStatusOK("Connected · checked " + new Date().toLocaleTimeString());
     });
   }
 
