@@ -286,7 +286,15 @@
   }
 
   function fetchAndRender(code) {
-    return getPublicDB().fetchRecords(code).then(function (response) {
+    if (typeof CloudKit === "undefined") {
+      return Promise.reject(new Error("CloudKit script didn't load. Disable content blockers for this site and reload."));
+    }
+    var timeout = new Promise(function (_, reject) {
+      setTimeout(function () {
+        reject(new Error("No response from CloudKit after 10 seconds. Check your connection and reload."));
+      }, 10000);
+    });
+    var request = getPublicDB().fetchRecords(code).then(function (response) {
       console.log("CloudKit response for " + code, response);
       var rec = response.records && response.records[0];
       if (!rec || rec.serverErrorCode || rec.recordType !== RECORD_TYPE) {
@@ -300,6 +308,7 @@
       render(rec);
       setStatusOK("Connected · checked " + new Date().toLocaleTimeString());
     });
+    return Promise.race([request, timeout]);
   }
 
   function startWatching(code) {
@@ -307,6 +316,7 @@
     document.getElementById("watchingCode").textContent = code;
     entryScreen.style.display = "none";
     scoreboard.style.display = "flex";
+    setStatusOK("Connecting to CloudKit…");
 
     // Reflect the join code in the URL so this page's link is directly shareable/bookmarkable.
     try {
@@ -366,6 +376,12 @@
       showError(
         "This page isn't configured yet. See web/README.md: generate a CloudKit Web Services API token and paste it into index.html."
       );
+      watchButton.disabled = true;
+      return;
+    }
+
+    if (typeof CloudKit === "undefined") {
+      showError("CloudKit script didn't load. Disable content blockers for this site and reload.");
       watchButton.disabled = true;
       return;
     }
