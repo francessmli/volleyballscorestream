@@ -177,6 +177,7 @@
   <div id="footer">
     <div class="code-label">Watching code <span id="watchingCode"></span></div>
     <div id="matchCompleteBadge">🏁 Match complete</div>
+    <div id="liveStatus" style="color:#ff6b6b;font-size:0.8rem;max-width:420px;"></div>
     <div class="sets-summary" id="completedSetsSummary"></div>
     <div class="updated" id="updatedAt"></div>
     <button class="secondary" id="stopButton">Stop watching</button>
@@ -267,8 +268,10 @@
     }
   }
 
+  // Errors go to the entry form AND the scoreboard footer, since the entry form is hidden while watching.
   function showError(message) {
     entryError.textContent = message;
+    document.getElementById("liveStatus").textContent = message;
   }
 
   function getPublicDB() {
@@ -283,7 +286,7 @@
         throw new Error(reason);
       }
       render(rec);
-      entryError.textContent = "";
+      showError("");
     });
   }
 
@@ -306,9 +309,9 @@
 
     if (pollTimer) clearInterval(pollTimer);
     pollTimer = setInterval(function () {
-      fetchAndRender(code).catch(function () {
-        // Transient misses are common (brief server hiccups); keep showing the last
-        // known score instead of flashing an error on every failed poll.
+      fetchAndRender(code).catch(function (err) {
+        // Keep the last known score on screen, but show why the update failed.
+        showError("Update failed: " + (err.message || "unknown error"));
       });
     }, POLL_INTERVAL_MS);
   }
