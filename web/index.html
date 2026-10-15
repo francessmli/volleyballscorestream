@@ -391,7 +391,9 @@
         containerIdentifier: CONTAINER_IDENTIFIER,
         apiTokenAuth: {
           apiToken: API_TOKEN,
-          persist: true
+          // Don't cache the token in browser storage; a stale token saved from an earlier
+          // config would otherwise keep being used and cause "Authentication failed".
+          persist: false
         },
         environment: ENVIRONMENT
       }]
